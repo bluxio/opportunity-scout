@@ -27,7 +27,7 @@ Opportunity Scout is an AI agent that researches local employers, extracts oppor
 ## URLs (fill after deploy)
 
 - **Repository:** https://github.com/bluxio/opportunity-scout
-- **Demo:** (Vercel URL)
+- **Demo:** https://opportunity-scout-ivory.vercel.app
 - **Video:** (YouTube URL)
 
 ## Built with
