@@ -10,81 +10,79 @@ import {
   saveStudentProfile,
 } from "@/lib/student-profile-storage";
 import {
-  STUDENT_GOALS,
+  GOAL_BUCKETS,
+  MAJOR_CHIPS,
+  TIMELINE_OPTIONS,
+  YEAR_LEVELS,
+  type GoalBucket,
   type RankedOpportunity,
-  type StudentGoal,
   type StudentProfile,
+  type TimelineOption,
+  type YearLevel,
 } from "@/lib/student-types";
-import { ArrowRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { ArrowRight, FileUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-type AppPhase = "goal" | "onboarding" | "running" | "complete";
+type AppPhase = "bucket" | "resume" | "profile" | "running" | "complete";
 
 const LOADING_LINES = [
-  "Matching opportunities to your goal…",
+  "Reading your context…",
   "Scoring fit, upside, and urgency…",
   "Picking your top moves for this week…",
 ];
 
-const EMPTY_PROFILE: Omit<StudentProfile, "goal"> = {
-  school: "",
+const EMPTY_PROFILE: StudentProfile = {
+  bucket: "explore",
+  year: "",
   major: "",
-  graduationYear: "",
-  location: "",
-  skills: "",
+  timeline: "",
 };
 
 export function ScoutApp() {
-  const [phase, setPhase] = useState<AppPhase>("goal");
-  const [selectedGoal, setSelectedGoal] = useState<StudentGoal | null>(null);
-  const [profile, setProfile] = useState<Omit<StudentProfile, "goal">>(EMPTY_PROFILE);
+  const [phase, setPhase] = useState<AppPhase>("bucket");
+  const [profile, setProfile] = useState<StudentProfile>(EMPTY_PROFILE);
   const [moves, setMoves] = useState<RankedOpportunity[]>([]);
   const [statusLine, setStatusLine] = useState(LOADING_LINES[0]);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = loadStudentProfile();
-    if (saved) {
-      setProfile({
-        school: saved.school,
-        major: saved.major,
-        graduationYear: saved.graduationYear,
-        location: saved.location,
-        skills: saved.skills,
-      });
-    }
+    if (saved) setProfile(saved);
   }, []);
 
-  const selectGoal = (goal: StudentGoal) => {
-    setSelectedGoal(goal);
+  const selectBucket = (bucket: GoalBucket) => {
+    setProfile((prev) => ({ ...prev, bucket }));
     setError(null);
-    setPhase("onboarding");
+    setPhase("resume");
   };
 
-  const updateProfile = (field: keyof Omit<StudentProfile, "goal">, value: string) => {
-    setProfile((prev) => ({ ...prev, [field]: value }));
+  const handleResumeUpload = (file: File | null) => {
+    if (!file) return;
+    setProfile((prev) => ({ ...prev, resumeFileName: file.name }));
+    setPhase("profile");
+    setError(null);
+  };
+
+  const skipResume = () => {
+    setProfile((prev) => ({ ...prev, resumeFileName: undefined }));
+    setPhase("profile");
+    setError(null);
   };
 
   const runRanking = async () => {
-    if (!selectedGoal) return;
-
-    const required: (keyof Omit<StudentProfile, "goal">)[] = [
-      "school",
-      "major",
-      "graduationYear",
-      "location",
-      "skills",
-    ];
-
-    const missing = required.filter((field) => !profile[field].trim());
-    if (missing.length > 0) {
-      setError("Please fill out all fields to continue.");
+    if (!profile.year || !profile.major || !profile.timeline) {
+      setError("Pick your year, field, and timeline to continue.");
       return;
     }
 
-    const fullProfile: StudentProfile = { goal: selectedGoal, ...profile };
-    saveStudentProfile(fullProfile);
+    if (profile.major === "Other" && !profile.majorCustom?.trim()) {
+      setError("Tell us your field under Other.");
+      return;
+    }
 
+    saveStudentProfile(profile);
     setPhase("running");
     setError(null);
     setMoves([]);
@@ -95,18 +93,20 @@ export function ScoutApp() {
       await new Promise((resolve) => setTimeout(resolve, 900));
     }
 
-    setMoves(rankOpportunitiesForProfile(fullProfile, 5));
+    setMoves(rankOpportunitiesForProfile(profile, 5));
     setPhase("complete");
   };
 
   const startOver = () => {
-    setPhase("goal");
-    setSelectedGoal(null);
+    setPhase("bucket");
     setMoves([]);
     setError(null);
   };
 
-  if (phase === "goal") {
+  const bucketLabel =
+    GOAL_BUCKETS.find((b) => b.id === profile.bucket)?.label ?? "";
+
+  if (phase === "bucket") {
     return (
       <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-16 sm:pt-24">
         <header className="mb-10">
@@ -114,21 +114,24 @@ export function ScoutApp() {
             Find the opportunities actually worth your time.
           </h1>
           <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/40">
-            Opp Scout ranks internships, startup roles, hackathons, fellowships,
-            scholarships, research opportunities, and paid gigs based on your
-            goals.
+            One question first — then we&apos;ll narrow your top moves for the
+            week.
           </p>
         </header>
 
-        <p className="mb-3 text-xs font-medium uppercase tracking-wider text-white/25">
-          What&apos;s your goal right now?
+        <p className="mb-4 text-xs font-medium uppercase tracking-wider text-white/25">
+          What do you need most right now?
         </p>
-        <div className="flex flex-wrap gap-2">
-          {STUDENT_GOALS.map((goal) => (
-            <button key={goal} type="button" onClick={() => selectGoal(goal)}>
-              <Badge variant="default" className="cursor-pointer px-3 py-1.5 text-sm">
-                {goal}
-              </Badge>
+        <div className="space-y-3">
+          {GOAL_BUCKETS.map((bucket) => (
+            <button
+              key={bucket.id}
+              type="button"
+              onClick={() => selectBucket(bucket.id)}
+              className="w-full rounded-xl border border-white/8 bg-white/[0.02] px-4 py-4 text-left transition-colors hover:border-white/15 hover:bg-white/[0.04]"
+            >
+              <p className="text-sm font-medium text-white">{bucket.label}</p>
+              <p className="mt-1 text-sm text-white/40">{bucket.description}</p>
             </button>
           ))}
         </div>
@@ -136,33 +139,140 @@ export function ScoutApp() {
     );
   }
 
-  if (phase === "onboarding") {
+  if (phase === "resume") {
     return (
       <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-16 sm:pt-24">
         <header className="mb-8">
           <p className="text-xs font-medium uppercase tracking-wider text-violet-300/60">
-            {selectedGoal}
+            {bucketLabel}
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Tell us a bit about you
+            Start with your resume
           </h1>
           <p className="mt-2 text-[15px] text-white/40">
-            Five quick fields — we&apos;ll rank your best moves for the week.
+            Upload now and we&apos;ll personalize from it soon. No resume? No
+            problem — a few taps instead.
           </p>
         </header>
 
-        <div className="space-y-4">
-          <Field label="School" value={profile.school} onChange={(v) => updateProfile("school", v)} placeholder="e.g. UT Dallas" />
-          <Field label="Major" value={profile.major} onChange={(v) => updateProfile("major", v)} placeholder="e.g. Computer Science" />
-          <Field label="Graduation year" value={profile.graduationYear} onChange={(v) => updateProfile("graduationYear", v)} placeholder="e.g. 2027" />
-          <Field label="Location" value={profile.location} onChange={(v) => updateProfile("location", v)} placeholder="e.g. Dallas, TX" />
-          <Field label="Skills" value={profile.skills} onChange={(v) => updateProfile("skills", v)} placeholder="e.g. Python, React, leadership" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.doc,.docx"
+          className="hidden"
+          onChange={(e) => handleResumeUpload(e.target.files?.[0] ?? null)}
+        />
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="flex w-full flex-col items-center rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-10 transition-colors hover:border-white/25 hover:bg-white/[0.04]"
+        >
+          <FileUp className="mb-3 h-8 w-8 text-white/30" />
+          <span className="text-sm font-medium text-white">Upload resume</span>
+          <span className="mt-1 text-xs text-white/35">PDF or DOC</span>
+        </button>
+
+        <div className="mt-4 flex justify-center">
+          <Button variant="ghost" size="sm" onClick={skipResume}>
+            Continue without resume
+          </Button>
+        </div>
+
+        <div className="mt-6">
+          <Button variant="ghost" size="sm" onClick={() => setPhase("bucket")}>
+            Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "profile") {
+    const showManualFields = !profile.resumeFileName;
+
+    return (
+      <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-16 sm:pt-24">
+        <header className="mb-8">
+          <p className="text-xs font-medium uppercase tracking-wider text-violet-300/60">
+            {bucketLabel}
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            {profile.resumeFileName ? "Almost there" : "Quick context"}
+          </h1>
+          <p className="mt-2 text-[15px] text-white/40">
+            {profile.resumeFileName
+              ? `Using ${profile.resumeFileName} — just confirm a few details.`
+              : "Three taps — then your top moves."}
+          </p>
+        </header>
+
+        <div className="space-y-6">
+          <ChipGroup
+            label="Year"
+            options={YEAR_LEVELS}
+            value={profile.year}
+            onChange={(year) =>
+              setProfile((prev) => ({ ...prev, year: year as YearLevel }))
+            }
+          />
+
+          <ChipGroup
+            label="Field"
+            options={MAJOR_CHIPS}
+            value={profile.major}
+            onChange={(major) => setProfile((prev) => ({ ...prev, major }))}
+          />
+
+          {profile.major === "Other" && (
+            <Field
+              label="Your field"
+              value={profile.majorCustom ?? ""}
+              onChange={(majorCustom) =>
+                setProfile((prev) => ({ ...prev, majorCustom }))
+              }
+              placeholder="e.g. Public Health"
+            />
+          )}
+
+          <ChipGroup
+            label="Timeline"
+            options={TIMELINE_OPTIONS}
+            value={profile.timeline}
+            onChange={(timeline) =>
+              setProfile((prev) => ({
+                ...prev,
+                timeline: timeline as TimelineOption,
+              }))
+            }
+          />
+
+          {showManualFields && (
+            <div className="space-y-4 border-t border-white/6 pt-6">
+              <Field
+                label="School (optional)"
+                value={profile.school ?? ""}
+                onChange={(school) =>
+                  setProfile((prev) => ({ ...prev, school }))
+                }
+                placeholder="e.g. UT Dallas"
+              />
+              <Field
+                label="Location (optional)"
+                value={profile.location ?? ""}
+                onChange={(location) =>
+                  setProfile((prev) => ({ ...prev, location }))
+                }
+                placeholder="e.g. Dallas, TX"
+              />
+            </div>
+          )}
         </div>
 
         {error && <p className="mt-3 text-sm text-red-400/90">{error}</p>}
 
         <div className="mt-6 flex items-center justify-between gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setPhase("goal")}>
+          <Button variant="ghost" size="sm" onClick={() => setPhase("resume")}>
             Back
           </Button>
           <Button size="sm" onClick={runRanking}>
@@ -177,26 +287,30 @@ export function ScoutApp() {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-16 sm:pt-24">
       {phase === "running" && (
-        <div className="space-y-8">
-          <div className="flex items-center gap-2.5">
-            <span className="thinking-dot" />
-            <p className="text-sm text-white/50">{statusLine}</p>
-          </div>
+        <div className="flex items-center gap-2.5">
+          <span className="thinking-dot" />
+          <p className="text-sm text-white/50">{statusLine}</p>
         </div>
       )}
 
       {phase === "complete" && (
         <div className="space-y-8">
-          <header className="space-y-2">
+          <header className="space-y-3">
+            <Badge variant="default" className="text-[10px] uppercase tracking-wider">
+              Sample recommendations — for testing
+            </Badge>
             <p className="text-xs font-medium uppercase tracking-wider text-white/25">
-              {selectedGoal}
+              {bucketLabel}
             </p>
             <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
               Your Top 5 Moves This Week
             </h1>
             <p className="text-[15px] leading-relaxed text-white/45">
-              Ranked for {profile.major || "you"} at {profile.school || "your school"}.
-              Start with #1 — highest score wins.
+              Picked for a {profile.year.toLowerCase()} studying{" "}
+              {profile.major === "Other"
+                ? profile.majorCustom
+                : profile.major}{" "}
+              on a {profile.timeline.toLowerCase()} timeline. Start with #1.
             </p>
           </header>
 
@@ -217,6 +331,44 @@ export function ScoutApp() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ChipGroup({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: readonly string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wider text-white/30">
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const active = value === option;
+          return (
+            <button key={option} type="button" onClick={() => onChange(option)}>
+              <Badge
+                variant={active ? "active" : "default"}
+                className={cn(
+                  "cursor-pointer px-3 py-1.5 text-sm",
+                  active && "shadow-sm",
+                )}
+              >
+                {option}
+              </Badge>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

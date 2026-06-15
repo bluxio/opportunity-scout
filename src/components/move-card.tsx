@@ -36,6 +36,12 @@ export function MoveCard({ opportunity, rank }: MoveCardProps) {
       </div>
 
       <dl className="mt-4 space-y-3 text-xs">
+        <div className="rounded-lg border border-violet-500/15 bg-violet-500/5 px-3 py-2.5">
+          <dt className="font-medium uppercase tracking-wider text-violet-300/50">
+            Why you&apos;re seeing this
+          </dt>
+          <dd className="mt-1 text-white/60">{opportunity.matchSummary}</dd>
+        </div>
         <div>
           <dt className="font-medium uppercase tracking-wider text-white/25">
             Why it fits

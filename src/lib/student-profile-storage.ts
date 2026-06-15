@@ -7,7 +7,9 @@ export function loadStudentProfile(): StudentProfile | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as StudentProfile;
+    const parsed = JSON.parse(raw) as StudentProfile;
+    if (!parsed.bucket) return null;
+    return parsed;
   } catch {
     return null;
   }

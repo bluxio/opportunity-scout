@@ -1,9 +1,53 @@
 import { computeOpportunityScore } from "@/lib/opportunity-score";
-import type {
-  RankedOpportunity,
-  StudentOpportunity,
-  StudentProfile,
+import {
+  GOAL_BUCKETS,
+  type GoalBucket,
+  type RankedOpportunity,
+  type StudentGoal,
+  type StudentOpportunity,
+  type StudentOpportunityCategory,
+  type StudentProfile,
 } from "@/lib/student-types";
+
+const BUCKET_GOALS: Record<GoalBucket, StudentGoal[]> = {
+  land: [
+    "Get an internship",
+    "Find research opportunities",
+    "Build my resume",
+    "Break into AI",
+    "Build a startup",
+    "Find scholarships",
+  ],
+  earn: ["Make money this summer", "Get an internship"],
+  explore: ["I'm not sure", "Build my resume", "Get an internship"],
+};
+
+const BUCKET_CATEGORY_WEIGHT: Record<
+  GoalBucket,
+  Partial<Record<StudentOpportunityCategory, number>>
+> = {
+  land: {
+    internship: 10,
+    fellowship: 8,
+    research: 8,
+    startup: 6,
+    hackathon: 5,
+    scholarship: 4,
+    gig: -8,
+  },
+  earn: {
+    gig: 12,
+    internship: 4,
+    research: -10,
+    scholarship: -8,
+    fellowship: -6,
+  },
+  explore: {
+    fellowship: 4,
+    hackathon: 4,
+    internship: 3,
+  },
+};
 
 export const MOCK_STUDENT_OPPORTUNITIES: StudentOpportunity[] = [
   {
@@ -456,16 +500,30 @@ export const MOCK_STUDENT_OPPORTUNITIES: StudentOpportunity[] = [
   },
 ];
 
+function effectiveMajor(profile: StudentProfile): string {
+  if (profile.major === "Other" && profile.majorCustom?.trim()) {
+    return profile.majorCustom.trim();
+  }
+  return profile.major;
+}
+
 function profileBoost(profile: StudentProfile, opp: StudentOpportunity): number {
   let boost = 0;
-  const major = profile.major.toLowerCase();
-  const skills = profile.skills.toLowerCase();
+  const major = effectiveMajor(profile).toLowerCase();
+  const skills = (profile.skills ?? "").toLowerCase();
+  const bucketGoals = BUCKET_GOALS[profile.bucket];
 
-  if (opp.goalTags.includes(profile.goal)) boost += 8;
-  if (profile.goal === "I'm not sure") boost += 2;
+  if (opp.goalTags.some((tag) => bucketGoals.includes(tag))) boost += 10;
+  if (opp.bucketTags?.includes(profile.bucket)) boost += 6;
 
-  if (major && opp.majorTags.some((tag) => major.includes(tag) || tag.includes(major))) {
-    boost += 6;
+  const categoryWeight = BUCKET_CATEGORY_WEIGHT[profile.bucket][opp.category];
+  if (categoryWeight) boost += categoryWeight;
+
+  if (
+    major &&
+    opp.majorTags.some((tag) => major.includes(tag) || tag.includes(major))
+  ) {
+    boost += 8;
   }
 
   if (skills) {
@@ -473,26 +531,49 @@ function profileBoost(profile: StudentProfile, opp: StudentOpportunity): number 
     boost += Math.min(skillHits * 3, 9);
   }
 
-  if (
-    profile.location &&
-    opp.id.includes("campus") === false &&
-    (opp.category === "gig" || opp.id.includes("local"))
-  ) {
-    boost += 2;
+  if (profile.timeline === "This week") {
+    if (opp.score.urgency >= 20) boost += 5;
   }
+  if (profile.timeline === "This summer") {
+    if (["internship", "research", "fellowship"].includes(opp.category)) {
+      boost += 4;
+    }
+  }
+
+  if (profile.resumeFileName) boost += 1;
 
   return boost;
 }
 
-function personalizeWhyItFits(profile: StudentProfile, opp: StudentOpportunity): string {
-  const major = profile.major.trim();
-  if (major && opp.whyItFits.includes("your major")) {
-    return opp.whyItFits.replace("your major", major);
+function buildMatchSummary(profile: StudentProfile, opp: StudentOpportunity): string {
+  const bucketLabel =
+    GOAL_BUCKETS.find((b) => b.id === profile.bucket)?.label ?? profile.bucket;
+  const major = effectiveMajor(profile);
+  const parts = [`you chose "${bucketLabel}"`];
+
+  if (profile.year) parts.push(`you're a ${profile.year}`);
+  if (major) parts.push(`studying ${major}`);
+  if (profile.timeline) parts.push(`${profile.timeline.toLowerCase()} timeline`);
+
+  const categoryNote =
+    BUCKET_CATEGORY_WEIGHT[profile.bucket][opp.category] &&
+    (BUCKET_CATEGORY_WEIGHT[profile.bucket][opp.category] ?? 0) > 0
+      ? ` Strong ${opp.category} pick for that focus.`
+      : "";
+
+  return `Ranked high because ${parts.join(", ")}.${categoryNote}`;
+}
+
+function personalizeWhyItFits(
+  profile: StudentProfile,
+  opp: StudentOpportunity,
+): string {
+  const major = effectiveMajor(profile);
+  let detail = opp.whyItFits;
+  if (major && detail.includes("your major")) {
+    detail = detail.replace("your major", major);
   }
-  if (major) {
-    return `${opp.whyItFits} Relevant for ${major} students.`;
-  }
-  return opp.whyItFits;
+  return detail;
 }
 
 export function rankOpportunitiesForProfile(
@@ -510,6 +591,7 @@ export function rankOpportunitiesForProfile(
     return {
       ...opp,
       whyItFits: personalizeWhyItFits(profile, opp),
+      matchSummary: buildMatchSummary(profile, opp),
       score: adjustedScore,
       opportunityScore: computeOpportunityScore(adjustedScore),
     };
