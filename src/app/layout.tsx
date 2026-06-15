@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Opportunity Scout",
+  title: "Opp Scout — Find opportunities worth your time",
   description:
-    "Surfaces opportunities discovered directly from employer career pages that users would likely miss through traditional job-search workflows.",
+    "Ranked internships, hackathons, scholarships, research, fellowships, and gigs based on your goals. Your top 5 moves this week.",
 };
 
 export default function RootLayout({

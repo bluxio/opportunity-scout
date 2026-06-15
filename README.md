@@ -1,12 +1,14 @@
-# Opportunity Scout
+# Opp Scout
 
-**Opportunity Scout researches dozens of local employers and surfaces opportunities discovered directly from employer career pages that users would likely miss through traditional job-search workflows.**
+**Find the opportunities actually worth your time.**
 
-Not a job board. Not an auto-apply bot. An opportunity discovery agent.
+Opp Scout is a decision engine for students — not a search engine. Pick a goal, share a few details, and get a ranked shortlist of internships, hackathons, scholarships, research roles, fellowships, startup opportunities, and paid gigs.
+
+**Live demo:** [opportunity-scout-ivory.vercel.app](https://opportunity-scout-ivory.vercel.app)
 
 ## One-sentence pitch
 
-> There are opportunities around you that you would never have found manually — because they only live on employer career pages, not where everyone else is searching.
+> Opp Scout ranks the opportunities actually worth your time based on your goals — so you know what to do this week, not just what exists.
 
 ## Quick start
 
@@ -17,75 +19,79 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-**Demo search:** `Part-time work near Allen, TX` · restaurant + retail · 15 mi
+## How it works
 
-## What you'll see
+1. **Pick a goal** — internship, AI, resume, summer income, research, scholarships, startup, or "I'm not sure"
+2. **Quick profile** — school, major, graduation year, location, skills (stored locally in your browser)
+3. **Get your Top 5 Moves This Week** — ranked cards with score, deadline, effort, upside, why it fits, and a clear next action
 
-1. **Summary** — opportunities discovered, direct employer postings, strong matches
-2. **Scout Intelligence** — pattern observations (category trends, proximity, overlooked employers)
-3. **Most overlooked employer** — e.g. North Italia with multiple active openings
-4. **Discovered opportunities** — each with "Why it surfaced" signals
-5. **How these were found** — collapsed research trace (mechanism, not the hero)
+## What each result includes
+
+| Field | What it tells you |
+|-------|-------------------|
+| **Opportunity Score** | Fit + upside + urgency + accessibility − effort |
+| **Why it fits** | Personalized to your goal and background |
+| **Estimated upside** | What you gain if it works |
+| **Estimated effort** | Time cost to apply or participate |
+| **Deadline** | When to act |
+| **Next action** | The single step to take now |
 
 ## Demo script (2 minutes)
 
-1. Open the app — explain the problem: job boards miss local employer career pages
-2. Enter intent: "Part-time work near Allen, TX"
-3. Click **Start scouting** — watch summary stats build live
-4. Point to **Scout Intelligence** — "research → analysis → results"
-5. Highlight **Most overlooked employer** — North Italia, 2 openings, miles away
-6. Walk through one **Discovered opportunity** — "Why it surfaced" shows agent reasoning
-7. Expand **How these were found** only if asked about the mechanism
+1. Open the app — "Most students drown in listings. This tells you what to do."
+2. Select **Break into AI** (or any goal)
+3. Fill profile — e.g. CS major, Class of 2027, Dallas TX
+4. Show **Your Top 5 Moves This Week**
+5. Walk through #1 — score, why it fits, next action, source link
+6. Mention: ranked from goal + profile, not endless scrolling
 
-## Architecture
+## Scoring
 
-```typescript
-interface OpportunityProvider {
-  discoverEmployers()
-  findCareerPage()
-  fetchOpportunities()
-}
+```text
+OpportunityScore = Fit + Upside + Urgency + Accessibility - Effort
 ```
 
-| Provider | Status |
-|----------|--------|
-| `MockProvider` | Full demo (Allen-area employers) |
-| `GreenhouseProvider` | Public API ready |
-| `LeverProvider` | Public API ready |
-| `WorkdayProvider` | Placeholder |
-| `CustomCareerPageProvider` | Placeholder |
-
-Greenhouse, Lever, Workday, and custom career pages are implementation details — the product is employer discovery, not ATS integration.
-
-## Environment
-
-Copy `.env.example` to `.env.local`:
-
-```bash
-GEMINI_API_KEY=          # optional — AI enrichment
-MONGODB_URI=             # optional — persist scout reports
-GREENHOUSE_BOARD_TOKEN=  # optional — live Greenhouse provider
-LEVER_COMPANY_SLUG=      # optional — live Lever provider
-```
+Implemented in `src/lib/opportunity-score.ts`. Mock data and weights in `src/lib/mock-student-opportunities.ts` — easy to tune.
 
 ## Tech stack
 
-- Next.js App Router · TypeScript · Tailwind
-- Python ADK agent · Gemini API · MongoDB MCP · MongoDB Atlas
-- SSE streaming for live scout updates
+| Layer | Tech |
+|-------|------|
+| Frontend | Next.js · TypeScript · Tailwind |
+| Student ranking | Mock dataset + local profile (`localStorage`) |
+| Agent backend | Python ADK · Gemini · MongoDB MCP · Atlas |
+
+## Environment (optional)
+
+Copy `.env.example` to `.env.local` for Next.js API features:
+
+```bash
+GEMINI_API_KEY=   # optional — AI enrichment on /api/scout
+MONGODB_URI=      # optional — direct session persistence
+```
+
+Agent env: copy `agent/.env.example` → `agent/.env` for ADK + MCP workflows.
+
+## Project structure
+
+```text
+src/                    # Next.js app (student UI)
+src/lib/                # scoring, mock opportunities, profile storage
+agent/                  # Python ADK agent + MongoDB MCP tools
+```
+
+---
 
 ## Hackathon repro (Google Cloud Rapid Agent — MongoDB track)
 
 **Stack:** ADK agent → `run_opportunity_scout` → MongoDB MCP `insert-many` → Atlas `search_sessions`
 
-### 1. Next.js UI
+### 1. Next.js API (optional — powers agent scout tool)
 
 ```bash
 npm install
 npm run dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000).
 
 ### 2. ADK agent + MongoDB MCP
 
@@ -114,3 +120,6 @@ python run_adk_mcp_poc.py
 
 MongoDB Atlas → `opportunity_scout` → `search_sessions` → confirm session document with matching `id`.
 
+## License
+
+MIT — see [LICENSE](LICENSE).
