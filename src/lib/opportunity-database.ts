@@ -1,3 +1,4 @@
+import { attachDNA } from "@/lib/opportunity-dna";
 import rawDatabase from "@/data/opportunity-database.json";
 import type {
   Opportunity,
@@ -81,8 +82,10 @@ export function scoreOpportunity(
     parts.push("AI interest");
   }
 
+  const enriched = attachDNA(opp);
+
   return {
-    ...opp,
+    ...enriched,
     personalizedFit,
     matchReason: parts.length > 0 ? parts.join(" · ") : undefined,
   };

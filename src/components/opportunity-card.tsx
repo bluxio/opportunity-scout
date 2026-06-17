@@ -23,6 +23,23 @@ const STATUS_LABEL: Record<string, string> = {
   closed: "Closed",
 };
 
+function DnaBar({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-white/45">{label}</span>
+        <span className="tabular-nums font-medium text-white/70">{value}/10</span>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-white/8">
+        <div
+          className="h-full rounded-full bg-violet-400/70"
+          style={{ width: `${value * 10}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function OpportunityCard({
   opportunity,
   rank,
@@ -37,6 +54,8 @@ export function OpportunityCard({
       : opportunity.status === "rolling"
         ? "text-violet-300/80 border-violet-500/20 bg-violet-500/8"
         : "text-white/50 border-white/10 bg-white/5";
+
+  const { whyThisMatters, dna } = opportunity;
 
   return (
     <article
@@ -74,9 +93,9 @@ export function OpportunityCard({
                 Paid
               </span>
             )}
-            {opportunity.remote && (
+            {dna.localToSchool && (
               <span className="text-[10px] font-medium uppercase tracking-wider text-sky-400/60">
-                Remote
+                Local to campus
               </span>
             )}
           </div>
@@ -97,17 +116,22 @@ export function OpportunityCard({
 
       {!compact && (
         <>
-          <p className="mt-3 text-xs text-white/40">
-            Found via{" "}
-            <a
-              href={opportunity.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/55 underline-offset-2 hover:text-white/75 hover:underline"
-            >
-              {opportunity.sourceName}
-            </a>
-          </p>
+          {/* Why This Matters — leverage dimensions */}
+          <div className="mt-4 rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-3 py-3">
+            <dt className="text-xs font-medium uppercase tracking-wider text-emerald-300/60">
+              Why this matters
+            </dt>
+            {whyThisMatters.highlights.length > 0 && (
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+                {whyThisMatters.highlights.map((h) => (
+                  <DnaBar key={h.label} label={h.label} value={h.value} />
+                ))}
+              </div>
+            )}
+            <dd className="mt-3 text-sm leading-relaxed text-white/60">
+              {whyThisMatters.narrative}
+            </dd>
+          </div>
 
           <dl className="mt-4 space-y-3 text-xs">
             {opportunity.matchReason && (
@@ -120,29 +144,9 @@ export function OpportunityCard({
             )}
             <div>
               <dt className="font-medium uppercase tracking-wider text-white/25">
-                Why it matters
-              </dt>
-              <dd className="mt-1 text-white/55">{opportunity.whyItMatters}</dd>
-            </div>
-            <div>
-              <dt className="font-medium uppercase tracking-wider text-white/25">
                 Good for
               </dt>
               <dd className="mt-1 text-white/55">{opportunity.goodFor}</dd>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <dt className="font-medium uppercase tracking-wider text-white/25">
-                  Upside
-                </dt>
-                <dd className="mt-1 tabular-nums text-white/55">{opportunity.upsideScore}/100</dd>
-              </div>
-              <div>
-                <dt className="font-medium uppercase tracking-wider text-white/25">
-                  Effort
-                </dt>
-                <dd className="mt-1 tabular-nums text-white/55">{opportunity.effortScore}/100</dd>
-              </div>
             </div>
             <div>
               <dt className="font-medium uppercase tracking-wider text-white/25">
@@ -157,6 +161,20 @@ export function OpportunityCard({
               <dd className="mt-1 text-sm text-white/70">{opportunity.nextAction}</dd>
             </div>
           </dl>
+
+          <p className="mt-3 text-[11px] text-white/30">
+            Source:{" "}
+            <a
+              href={opportunity.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/40 underline-offset-2 hover:text-white/55 hover:underline"
+            >
+              {opportunity.sourceName}
+            </a>
+            {dna.remote && " · Remote OK"}
+            {dna.inPerson && !dna.remote && " · In person"}
+          </p>
 
           {opportunity.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">

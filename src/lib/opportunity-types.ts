@@ -15,6 +15,21 @@ export type OpportunityCategory = (typeof OPPORTUNITY_CATEGORIES)[number]["id"];
 
 export type OpportunityStatus = "open" | "closing_soon" | "rolling" | "closed";
 
+/** Optional hand-curated DNA overrides (0–10 per dimension) */
+export interface OpportunityDNAInput {
+  money?: number;
+  resume?: number;
+  network?: number;
+  prestige?: number;
+  experience?: number;
+  effort?: number;
+  competitiveness?: number;
+  inPerson?: boolean;
+  remote?: boolean;
+  localToSchool?: boolean;
+  tags?: string[];
+}
+
 export interface Opportunity {
   id: string;
   title: string;
@@ -43,13 +58,36 @@ export interface Opportunity {
   whyItMatters: string;
   goodFor: string;
   nextAction: string;
+  /** Optional curated DNA overrides — inferred from category when omitted */
+  dna?: OpportunityDNAInput;
   /** Dev-only: not a verified live listing */
   isPlaceholder?: boolean;
+}
+
+export interface OpportunityDNA {
+  money: number;
+  resume: number;
+  network: number;
+  prestige: number;
+  experience: number;
+  effort: number;
+  competitiveness: number;
+  inPerson: boolean;
+  remote: boolean;
+  localToSchool?: boolean;
+  tags: string[];
+}
+
+export interface WhyThisMattersBlock {
+  highlights: { label: string; value: number }[];
+  narrative: string;
 }
 
 export interface ScoredOpportunity extends Opportunity {
   personalizedFit: number;
   matchReason?: string;
+  dna: OpportunityDNA;
+  whyThisMatters: WhyThisMattersBlock;
 }
 
 export type SecondaryFilter =
