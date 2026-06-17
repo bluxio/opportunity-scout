@@ -1,9 +1,9 @@
-import { ScoutApp } from "@/components/scout-app";
+import { OpportunityFeedApp } from "@/components/opportunity-feed-app";
 
 export default function Home() {
   return (
     <main className="min-h-screen">
-      <ScoutApp />
+      <OpportunityFeedApp />
     </main>
   );
 }

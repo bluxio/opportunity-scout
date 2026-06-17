@@ -1,14 +1,10 @@
 # Opp Scout
 
-**Find the opportunities actually worth your time.**
+**Find underrated opportunities before everyone else does.**
 
-Opp Scout is a decision engine for students — not a search engine. Pick a goal, share a few details, and get a ranked shortlist of internships, hackathons, scholarships, research roles, fellowships, startup opportunities, and paid gigs.
+Opp Scout is a searchable, filterable opportunity database for students — internships, startup roles, hackathons, fellowships, scholarships, research, paid gigs, local jobs, and campus opportunities in one place. Personalization and Top 5 recommendations sit on top of the feed.
 
 **Live demo:** [opportunity-scout-ivory.vercel.app](https://opportunity-scout-ivory.vercel.app)
-
-## One-sentence pitch
-
-> Opp Scout ranks the opportunities actually worth your time based on your goals — so you know what to do this week, not just what exists.
 
 ## Quick start
 
@@ -19,47 +15,21 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## How it works
+## Product model
 
-1. **Pick a goal** — internship, AI, resume, summer income, research, scholarships, startup, or "I'm not sure"
-2. **Quick profile** — school, major, graduation year, location, skills (stored locally in your browser)
-3. **Get your Top 5 Moves This Week** — ranked cards with score, deadline, effort, upside, why it fits, and a clear next action
+**Database first. Personalization second.**
 
-## What each result includes
+- **Opportunity feed** — 50+ specific, actionable listings (not platform directories)
+- **Category + filter chips** — browse by type, deadline, paid, remote, AI, etc.
+- **Recommended for you** — Top 5 from the same database, personalized via local profile
+- **Save / dismiss** — stored in browser localStorage
+- **Submit an opportunity** — community submissions saved locally
 
-| Field | What it tells you |
-|-------|-------------------|
-| **Opportunity Score** | Fit + upside + urgency + accessibility − effort |
-| **Why it fits** | Personalized to your goal and background |
-| **Estimated upside** | What you gain if it works |
-| **Estimated effort** | Time cost to apply or participate |
-| **Deadline** | When to act |
-| **Next action** | The single step to take now |
+Sources like Devpost or company career pages appear as *“Found via …”* on each card — not as the card itself.
 
-## Demo script (2 minutes)
+## Legacy / hackathon backend
 
-1. Open the app — "Most students drown in listings. This tells you what to do."
-2. Select **Break into AI** (or any goal)
-3. Fill profile — e.g. CS major, Class of 2027, Dallas TX
-4. Show **Your Top 5 Moves This Week**
-5. Walk through #1 — score, why it fits, next action, source link
-6. Mention: ranked from goal + profile, not endless scrolling
-
-## Scoring
-
-```text
-OpportunityScore = Fit + Upside + Urgency + Accessibility - Effort
-```
-
-Implemented in `src/lib/opportunity-score.ts`. Curated opportunities in `src/data/opportunities.json`; ranking weights in `src/lib/mock-student-opportunities.ts`.
-
-## Tech stack
-
-| Layer | Tech |
-|-------|------|
-| Frontend | Next.js · TypeScript · Tailwind |
-| Student ranking | Curated JSON dataset + local profile (`localStorage`) |
-| Agent backend | Python ADK · Gemini · MongoDB MCP · Atlas |
+The ADK agent, `/api/scout`, MongoDB MCP, and resume parse API remain intact under `agent/` and `src/app/api/`. The main student UI is `src/components/opportunity-feed-app.tsx`.
 
 ## Environment (optional)
 
