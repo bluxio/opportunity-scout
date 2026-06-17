@@ -1,6 +1,7 @@
 "use client";
 
 import { OpportunityCard } from "@/components/opportunity-card";
+import { TrajectorySection } from "@/components/trajectory-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,10 @@ import {
   getRecommendedOpportunities,
   searchAndFilterOpportunities,
 } from "@/lib/opportunity-database";
+import {
+  generateTrajectory,
+  toTrajectoryProfile,
+} from "@/lib/generate-trajectory";
 import {
   dismissOpportunity,
   loadDismissedIds,
@@ -105,6 +110,23 @@ export function OpportunityFeedApp() {
     [query, category, secondary, userProfile, dismissedIds],
   );
 
+  const allScored = useMemo(
+    () =>
+      searchAndFilterOpportunities({
+        profile: userProfile,
+        excludeIds: dismissedIds,
+      }),
+    [userProfile, dismissedIds],
+  );
+
+  const trajectoryBundle = useMemo(
+    () => generateTrajectory(toTrajectoryProfile(profile), allScored),
+    [profile, allScored],
+  );
+
+  const showPersonalizedSections =
+    secondary === "all" && !query.trim() && category === "all";
+
   const handleSave = useCallback((id: string) => {
     setSavedIds(toggleSaved(id));
   }, []);
@@ -188,7 +210,7 @@ export function OpportunityFeedApp() {
       {showProfile && (
         <section className="mb-8 rounded-xl border border-white/8 bg-white/[0.02] p-4">
           <p className="mb-3 text-sm font-medium text-white/80">
-            Quick profile — powers &ldquo;Recommended for you&rdquo;
+            Quick profile — powers recommendations & trajectory
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field
@@ -300,8 +322,13 @@ export function OpportunityFeedApp() {
         </section>
       )}
 
+      {/* Recommended trajectory */}
+      {showPersonalizedSections && (
+        <TrajectorySection bundle={trajectoryBundle} hasProfile={hasProfile} />
+      )}
+
       {/* Top 5 recommended */}
-      {recommended.length > 0 && secondary === "all" && !query && category === "all" && (
+      {showPersonalizedSections && recommended.length > 0 && (
         <section className="mb-10 space-y-4">
           <div>
             <h2 className="text-lg font-semibold text-white">
