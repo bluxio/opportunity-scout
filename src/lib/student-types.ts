@@ -116,6 +116,8 @@ export interface StudentOpportunity {
   whyItFits: string;
   nextAction: string;
   sourceLink: string;
+  /** open = actionable now; closed = exclude from results; rolling = always open */
+  status?: "open" | "closed" | "rolling";
   score: ScoreComponents;
   goalTags: StudentGoal[];
   majorTags: string[];

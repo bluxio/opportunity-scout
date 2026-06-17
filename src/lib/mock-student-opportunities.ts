@@ -38,10 +38,12 @@ const BUCKET_CATEGORY_WEIGHT: Record<
   },
   earn: {
     gig: 12,
-    internship: 4,
+    internship: 8,
+    startup: -4,
     research: -10,
     scholarship: -8,
-    fellowship: -6,
+    fellowship: -10,
+    hackathon: -6,
   },
   explore: {
     fellowship: 4,
@@ -174,7 +176,15 @@ function profileBoost(profile: StudentProfile, opp: StudentOpportunity): number 
   const school = profile.school ?? "";
   if (CAMPUS_TAMU_IDS.has(opp.id)) {
     if (school && isTamuSchool(school)) boost += 18;
-    else boost -= 35;
+    else boost -= 45;
+  }
+
+  if (profile.bucket === "earn") {
+    if (GENERIC_PORTAL_IDS.has(opp.id) && opp.id === "startup-school") boost -= 14;
+    if (opp.goalTags.includes("Make money this summer")) boost += 8;
+    if (opp.category === "gig") boost += 6;
+    if (opp.category === "internship") boost += 4;
+    if (opp.category === "fellowship") boost -= 6;
   }
 
   const strength = profile.resumeAudit?.strength;
@@ -231,7 +241,8 @@ export function rankOpportunitiesForProfile(
   profile: StudentProfile,
   limit = 5,
 ): RankedOpportunity[] {
-  return CURATED_OPPORTUNITIES.map((opp) => {
+  return CURATED_OPPORTUNITIES.filter((opp) => opp.status !== "closed")
+    .map((opp) => {
     const boost = profileBoost(profile, opp);
     const adjustedScore: typeof opp.score = {
       ...opp.score,
