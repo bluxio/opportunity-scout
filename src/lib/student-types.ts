@@ -47,6 +47,15 @@ export const TIMELINE_OPTIONS = [
 
 export type TimelineOption = (typeof TIMELINE_OPTIONS)[number];
 
+export type ResumeStrength = "weak" | "developing" | "strong";
+
+export interface ResumeAudit {
+  strength: ResumeStrength;
+  summary: string;
+  gaps: string[];
+  suggestedFocus: string;
+}
+
 /** @deprecated Used for mock opportunity tagging — derived from bucket at rank time */
 export const STUDENT_GOALS = [
   "Get an internship",
@@ -84,6 +93,8 @@ export interface StudentProfile {
   location?: string;
   skills?: string;
   resumeFileName?: string;
+  parsedFromResume?: boolean;
+  resumeAudit?: ResumeAudit;
 }
 
 export interface ScoreComponents {

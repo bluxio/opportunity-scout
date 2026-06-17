@@ -60,3 +60,61 @@ export async function listSearchSessions(
 export function isDbConfigured(): boolean {
   return Boolean(process.env.MONGODB_URI);
 }
+
+export interface UserFeedback {
+  id: string;
+  createdAt: string;
+  bucket: string;
+  pursued: string[];
+  skipped: string[];
+  note?: string;
+  topMoves: string[];
+}
+
+export async function saveUserFeedback(
+  feedback: UserFeedback,
+): Promise<boolean> {
+  const database = await getDb();
+  if (!database) return false;
+
+  await database.collection<UserFeedback>("user_feedback").insertOne(feedback);
+  return true;
+}
+
+export interface FeedbackSummary {
+  total: number;
+  pursued: Record<string, number>;
+  skipped: Record<string, number>;
+  notes: string[];
+  byBucket: Record<string, number>;
+}
+
+export async function summarizeUserFeedback(): Promise<FeedbackSummary | null> {
+  const database = await getDb();
+  if (!database) return null;
+
+  const rows = await database
+    .collection<UserFeedback>("user_feedback")
+    .find({})
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .toArray();
+
+  const pursued: Record<string, number> = {};
+  const skipped: Record<string, number> = {};
+  const byBucket: Record<string, number> = {};
+  const notes: string[] = [];
+
+  for (const row of rows) {
+    byBucket[row.bucket] = (byBucket[row.bucket] ?? 0) + 1;
+    for (const id of row.pursued) {
+      pursued[id] = (pursued[id] ?? 0) + 1;
+    }
+    for (const id of row.skipped) {
+      skipped[id] = (skipped[id] ?? 0) + 1;
+    }
+    if (row.note) notes.push(row.note);
+  }
+
+  return { total: rows.length, pursued, skipped, notes, byBucket };
+}

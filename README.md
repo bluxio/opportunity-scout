@@ -51,14 +51,14 @@ Open [http://localhost:3000](http://localhost:3000).
 OpportunityScore = Fit + Upside + Urgency + Accessibility - Effort
 ```
 
-Implemented in `src/lib/opportunity-score.ts`. Mock data and weights in `src/lib/mock-student-opportunities.ts` — easy to tune.
+Implemented in `src/lib/opportunity-score.ts`. Curated opportunities in `src/data/opportunities.json`; ranking weights in `src/lib/mock-student-opportunities.ts`.
 
 ## Tech stack
 
 | Layer | Tech |
 |-------|------|
 | Frontend | Next.js · TypeScript · Tailwind |
-| Student ranking | Mock dataset + local profile (`localStorage`) |
+| Student ranking | Curated JSON dataset + local profile (`localStorage`) |
 | Agent backend | Python ADK · Gemini · MongoDB MCP · Atlas |
 
 ## Environment (optional)
