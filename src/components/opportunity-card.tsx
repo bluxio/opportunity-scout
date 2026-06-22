@@ -1,11 +1,14 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { formatCategoryLabel } from "@/lib/opportunity-database";
+import {
+  formatDeadlinePill,
+  getTopDnaPills,
+  truncateWords,
+} from "@/lib/rank-for-profile";
 import type { ScoredOpportunity } from "@/lib/opportunity-types";
 import { cn } from "@/lib/utils";
-import { ArrowUpRight, Bookmark, X } from "lucide-react";
+import { ArrowUpRight, Bookmark } from "lucide-react";
 
 interface OpportunityCardProps {
   opportunity: ScoredOpportunity;
@@ -13,214 +16,122 @@ interface OpportunityCardProps {
   saved?: boolean;
   onSave?: () => void;
   onDismiss?: () => void;
-  compact?: boolean;
 }
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Open",
-  closing_soon: "Closing soon",
+  closing_soon: "Closing Soon",
   rolling: "Rolling",
   closed: "Closed",
 };
-
-function DnaBar({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="text-white/45">{label}</span>
-        <span className="tabular-nums font-medium text-white/70">{value}/10</span>
-      </div>
-      <div className="h-1 overflow-hidden rounded-full bg-white/8">
-        <div
-          className="h-full rounded-full bg-violet-400/70"
-          style={{ width: `${value * 10}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 export function OpportunityCard({
   opportunity,
   rank,
   saved = false,
   onSave,
-  onDismiss,
-  compact = false,
 }: OpportunityCardProps) {
-  const statusVariant =
-    opportunity.status === "closing_soon"
-      ? "text-amber-300/80 border-amber-500/25 bg-amber-500/10"
-      : opportunity.status === "rolling"
-        ? "text-violet-300/80 border-violet-500/20 bg-violet-500/8"
-        : "text-white/50 border-white/10 bg-white/5";
-
-  const { whyThisMatters, dna } = opportunity;
+  const dna = opportunity.dna;
+  const pills = getTopDnaPills(dna, 3);
+  const deadline = formatDeadlinePill(
+    opportunity.deadlineISO,
+    opportunity.status,
+    opportunity.deadline,
+  );
+  const bestFor = truncateWords(opportunity.goodFor, 8);
 
   return (
     <article
-      className={cn(
-        "animate-in rounded-xl border border-white/6 bg-white/[0.02] transition-colors hover:border-white/10",
-        compact ? "px-4 py-3" : "px-4 py-4",
-      )}
+      className="relative flex max-w-[360px] flex-col rounded-xl border border-white/6 bg-white/[0.02] px-3.5 py-3 transition-colors hover:border-white/12"
+      title={`Fit ${opportunity.personalizedFit}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex flex-wrap items-center gap-2">
-            {rank != null && (
-              <span className="text-[10px] font-medium uppercase tracking-wider text-white/25">
-                #{rank}
-              </span>
-            )}
-            <span className="text-[10px] font-medium uppercase tracking-wider text-violet-300/70">
-              {formatCategoryLabel(opportunity.category)}
-            </span>
+      {onSave && (
+        <button
+          type="button"
+          onClick={onSave}
+          className="absolute right-2.5 top-2.5 rounded-md p-1 text-white/35 transition-colors hover:bg-white/8 hover:text-white/70"
+          aria-label={saved ? "Unsave" : "Save"}
+        >
+          <Bookmark className={cn("h-4 w-4", saved && "fill-violet-300 text-violet-300")} />
+        </button>
+      )}
+
+      <div className="flex flex-wrap items-center gap-1.5 pr-8">
+        {rank != null && (
+          <span className="text-[10px] font-medium tabular-nums text-violet-300/80">
+            #{rank}
+          </span>
+        )}
+        <span className="text-[10px] font-medium uppercase tracking-wider text-violet-300/60">
+          {formatCategoryLabel(opportunity.category)}
+        </span>
+        <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[10px] text-white/45">
+          {STATUS_LABEL[opportunity.status] ?? opportunity.status}
+        </span>
+        {opportunity.paid && (
+          <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400/80">
+            Paid
+          </span>
+        )}
+      </div>
+
+      <h3 className="mt-2 line-clamp-1 text-[15px] font-medium leading-snug text-white sm:line-clamp-2">
+        {opportunity.title}
+      </h3>
+      <p className="mt-0.5 truncate text-[13px] text-white/45">
+        {opportunity.organization}
+      </p>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-white/50">
+          {opportunity.remote ? "Remote" : opportunity.location.split(",")[0]?.trim() || opportunity.location}
+        </span>
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[11px]",
+            deadline.variant === "urgent" &&
+              "border border-red-500/30 bg-red-500/10 text-red-300/90",
+            deadline.variant === "soon" &&
+              "border border-amber-500/25 bg-amber-500/10 text-amber-200/90",
+            (deadline.variant === "muted" || deadline.variant === "rolling") &&
+              "border border-white/8 text-white/40",
+          )}
+        >
+          {deadline.label}
+        </span>
+      </div>
+
+      {pills.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1">
+          {pills.map((p) => (
             <span
+              key={p.abbrev}
               className={cn(
-                "rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
-                statusVariant,
+                "rounded-full px-1.5 py-0.5 text-[11px] font-medium",
+                p.value >= 8
+                  ? "border border-violet-400/30 bg-violet-500/20 text-violet-200/90"
+                  : "border border-white/12 text-white/50",
               )}
             >
-              {STATUS_LABEL[opportunity.status] ?? opportunity.status}
+              {p.abbrev} {p.value}
             </span>
-            {opportunity.isPlaceholder && (
-              <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/40">
-                Dev example
-              </span>
-            )}
-            {opportunity.paid && (
-              <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-400/70">
-                Paid
-              </span>
-            )}
-            {dna.localToSchool && (
-              <span className="text-[10px] font-medium uppercase tracking-wider text-sky-400/60">
-                Local to campus
-              </span>
-            )}
-          </div>
-          <p className="text-sm font-medium text-white">{opportunity.title}</p>
-          <p className="mt-0.5 text-sm text-white/45">{opportunity.organization}</p>
-          <p className="mt-1 text-xs text-white/30">
-            {opportunity.location}
-            {opportunity.compensation ? ` · ${opportunity.compensation}` : ""}
-          </p>
+          ))}
         </div>
-        <div className="shrink-0 text-right">
-          <p className="text-lg font-medium tabular-nums text-emerald-400/90">
-            {opportunity.personalizedFit}
-          </p>
-          <p className="text-[10px] uppercase tracking-wider text-white/25">Fit</p>
-        </div>
-      </div>
-
-      {!compact && (
-        <>
-          {/* Why This Matters — leverage dimensions */}
-          <div className="mt-4 rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-3 py-3">
-            <dt className="text-xs font-medium uppercase tracking-wider text-emerald-300/60">
-              Why this matters
-            </dt>
-            {whyThisMatters.highlights.length > 0 && (
-              <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-                {whyThisMatters.highlights.map((h) => (
-                  <DnaBar key={h.label} label={h.label} value={h.value} />
-                ))}
-              </div>
-            )}
-            <dd className="mt-3 text-sm leading-relaxed text-white/60">
-              {whyThisMatters.narrative}
-            </dd>
-          </div>
-
-          <dl className="mt-4 space-y-3 text-xs">
-            {opportunity.matchReason && (
-              <div className="rounded-lg border border-violet-500/15 bg-violet-500/5 px-3 py-2.5">
-                <dt className="font-medium uppercase tracking-wider text-violet-300/50">
-                  Why recommended
-                </dt>
-                <dd className="mt-1 text-white/60">{opportunity.matchReason}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="font-medium uppercase tracking-wider text-white/25">
-                Good for
-              </dt>
-              <dd className="mt-1 text-white/55">{opportunity.goodFor}</dd>
-            </div>
-            <div>
-              <dt className="font-medium uppercase tracking-wider text-white/25">
-                Deadline
-              </dt>
-              <dd className="mt-1 text-white/55">{opportunity.deadline}</dd>
-            </div>
-            <div className="rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2.5">
-              <dt className="font-medium uppercase tracking-wider text-white/25">
-                Next action
-              </dt>
-              <dd className="mt-1 text-sm text-white/70">{opportunity.nextAction}</dd>
-            </div>
-          </dl>
-
-          <p className="mt-3 text-[11px] text-white/30">
-            Source:{" "}
-            <a
-              href={opportunity.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/40 underline-offset-2 hover:text-white/55 hover:underline"
-            >
-              {opportunity.sourceName}
-            </a>
-            {dna.remote && " · Remote OK"}
-            {dna.inPerson && !dna.remote && " · In person"}
-          </p>
-
-          {opportunity.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {opportunity.tags.slice(0, 6).map((tag) => (
-                <Badge key={tag} variant="default" className="text-[10px] capitalize">
-                  {tag.replace(/-/g, " ")}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </>
       )}
 
-      <div className={cn("flex gap-2", compact ? "mt-3" : "mt-4")}>
-        <a
-          href={opportunity.applyUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/8 text-sm font-medium text-white transition-all hover:bg-white/12"
-        >
-          Apply / view
-          <ArrowUpRight className="h-4 w-4" />
-        </a>
-        {onSave && (
-          <Button
-            type="button"
-            variant={saved ? "default" : "secondary"}
-            size="icon"
-            onClick={onSave}
-            aria-label={saved ? "Unsave" : "Save"}
-          >
-            <Bookmark className={cn("h-4 w-4", saved && "fill-current")} />
-          </Button>
-        )}
-        {onDismiss && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onDismiss}
-            aria-label="Dismiss"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
+      {bestFor && (
+        <p className="mt-2 line-clamp-2 text-xs text-white/40">{bestFor}</p>
+      )}
+
+      <a
+        href={opportunity.applyUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] text-sm font-medium text-white transition-colors hover:border-violet-400/40 hover:bg-violet-500/10"
+      >
+        Apply
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      </a>
     </article>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { LeverageModal } from "@/components/leverage-modal";
 import { OpportunityCard } from "@/components/opportunity-card";
 import { TrajectorySection } from "@/components/trajectory-section";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   getRecommendedOpportunities,
+  OPPORTUNITY_DATABASE,
   searchAndFilterOpportunities,
 } from "@/lib/opportunity-database";
 import {
@@ -33,6 +35,21 @@ import {
 import { cn } from "@/lib/utils";
 import { Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+type FeedSort =
+  | "best_fit"
+  | "deadline_soon"
+  | "highest_upside"
+  | "lowest_effort"
+  | "newest";
+
+const SORT_OPTIONS: { value: FeedSort; label: string }[] = [
+  { value: "best_fit", label: "Best fit" },
+  { value: "deadline_soon", label: "Deadline soon" },
+  { value: "highest_upside", label: "Highest upside" },
+  { value: "lowest_effort", label: "Lowest effort" },
+  { value: "newest", label: "Newest" },
+];
 
 const SECONDARY_FILTERS: { id: SecondaryFilter | "all"; label: string }[] = [
   { id: "recommended", label: "Recommended for you" },
@@ -71,6 +88,22 @@ export function OpportunityFeedApp() {
     notes: "",
   });
   const [submitDone, setSubmitDone] = useState(false);
+  const [feedSort, setFeedSort] = useState<FeedSort>("best_fit");
+  const [leverageOpen, setLeverageOpen] = useState(false);
+  const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
+
+  const openOpportunities = useMemo(
+    () => OPPORTUNITY_DATABASE.filter((o) => o.status !== "closed"),
+    [],
+  );
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: openOpportunities.length };
+    for (const opp of openOpportunities) {
+      counts[opp.category] = (counts[opp.category] ?? 0) + 1;
+    }
+    return counts;
+  }, [openOpportunities]);
 
   useEffect(() => {
     setSavedIds(loadSavedIds());
@@ -98,17 +131,52 @@ export function OpportunityFeedApp() {
     [userProfile, dismissedIds],
   );
 
-  const feed = useMemo(
-    () =>
-      searchAndFilterOpportunities({
-        query,
-        category,
-        secondary,
-        profile: userProfile,
-        excludeIds: dismissedIds,
-      }),
-    [query, category, secondary, userProfile, dismissedIds],
-  );
+  const feed = useMemo(() => {
+    const base = searchAndFilterOpportunities({
+      query,
+      category,
+      secondary,
+      profile: userProfile,
+      excludeIds: dismissedIds,
+    });
+
+    const sorted = [...base];
+    switch (feedSort) {
+      case "deadline_soon":
+        sorted.sort((a, b) => {
+          const da = a.deadlineISO
+            ? new Date(a.deadlineISO).getTime()
+            : Number.MAX_SAFE_INTEGER;
+          const db = b.deadlineISO
+            ? new Date(b.deadlineISO).getTime()
+            : Number.MAX_SAFE_INTEGER;
+          return da - db;
+        });
+        break;
+      case "highest_upside":
+        sorted.sort((a, b) => b.upsideScore - a.upsideScore);
+        break;
+      case "lowest_effort":
+        sorted.sort((a, b) => a.effortScore - b.effortScore);
+        break;
+      case "newest":
+        sorted.sort(
+          (a, b) =>
+            new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime(),
+        );
+        break;
+      default:
+        sorted.sort((a, b) => b.personalizedFit - a.personalizedFit);
+    }
+    return sorted;
+  }, [
+    query,
+    category,
+    secondary,
+    userProfile,
+    dismissedIds,
+    feedSort,
+  ]);
 
   const allScored = useMemo(
     () =>
@@ -159,8 +227,15 @@ export function OpportunityFeedApp() {
     }, 2000);
   };
 
+  const clearFilters = () => {
+    setQuery("");
+    setCategory("all");
+    setSecondary("all");
+    setFeedSort("best_fit");
+  };
+
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pb-32 pt-12 sm:pt-16">
+    <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-12 sm:pt-16">
       {/* Hero */}
       <header className="mb-10 space-y-4">
         <div className="space-y-2">
@@ -339,7 +414,7 @@ export function OpportunityFeedApp() {
               {hasProfile ? " — personalized to your profile" : " — set a profile to personalize"}
             </p>
           </div>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {recommended.map((opp, i) => (
               <OpportunityCard
                 key={opp.id}
@@ -347,7 +422,6 @@ export function OpportunityFeedApp() {
                 rank={i + 1}
                 saved={savedIds.includes(opp.id)}
                 onSave={() => handleSave(opp.id)}
-                onDismiss={() => handleDismiss(opp.id)}
               />
             ))}
           </div>
@@ -363,14 +437,14 @@ export function OpportunityFeedApp() {
           <FilterChip
             active={category === "all"}
             onClick={() => setCategory("all")}
-            label="All"
+            label={`All (${categoryCounts.all ?? 0})`}
           />
           {OPPORTUNITY_CATEGORIES.map((c) => (
             <FilterChip
               key={c.id}
               active={category === c.id}
               onClick={() => setCategory(c.id)}
-              label={c.label}
+              label={`${c.label} (${categoryCounts[c.id] ?? 0})`}
             />
           ))}
         </div>
@@ -378,10 +452,24 @@ export function OpportunityFeedApp() {
 
       {/* Secondary filters */}
       <section className="mb-8 space-y-3">
-        <p className="text-xs font-medium uppercase tracking-wider text-white/25">
-          Filters
-        </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-white/25">
+            Filters
+          </p>
+          <button
+            type="button"
+            className="text-xs text-violet-300/70 md:hidden"
+            onClick={() => setShowSecondaryFilters((v) => !v)}
+          >
+            {showSecondaryFilters ? "Hide" : "Show filters"}
+          </button>
+        </div>
+        <div
+          className={cn(
+            "flex flex-wrap gap-2",
+            !showSecondaryFilters && "hidden md:flex",
+          )}
+        >
           <FilterChip
             active={secondary === "all"}
             onClick={() => setSecondary("all")}
@@ -400,33 +488,73 @@ export function OpportunityFeedApp() {
 
       {/* Main feed */}
       <section className="space-y-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-lg font-semibold text-white">
-            Opportunity feed
-          </h2>
-          <span className="text-sm text-white/35">
-            {feed.length} {feed.length === 1 ? "result" : "results"}
-          </span>
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Student Opportunities</h2>
+            <p className="text-sm text-white/40">
+              {openOpportunities.length} curated · Updated today
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-white/45">
+              Showing {feed.length} opportunities · Updated today
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={feedSort}
+                onChange={(e) => setFeedSort(e.target.value as FeedSort)}
+                className="h-9 rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm text-white/80 focus:border-white/20 focus:outline-none"
+                aria-label="Sort opportunities"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} className="bg-[#0e0e12]">
+                    Sort: {o.label}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                onClick={() => setLeverageOpen(true)}
+                className="border border-violet-400/30 bg-violet-500/15 text-violet-100 hover:bg-violet-500/25"
+              >
+                Highest Leverage For Me →
+              </Button>
+            </div>
+          </div>
         </div>
 
         {feed.length === 0 ? (
-          <p className="rounded-xl border border-white/6 bg-white/[0.02] px-4 py-8 text-center text-sm text-white/40">
-            No opportunities match your filters. Try clearing filters or search.
-          </p>
+          <div className="rounded-xl border border-white/6 bg-white/[0.02] px-4 py-8 text-center">
+            <p className="text-sm text-white/50">No matches for these filters.</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Button variant="secondary" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowSubmit(true)}>
+                Submit an opportunity
+              </Button>
+            </div>
+          </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
             {feed.map((opp) => (
               <OpportunityCard
                 key={opp.id}
                 opportunity={opp}
                 saved={savedIds.includes(opp.id)}
                 onSave={() => handleSave(opp.id)}
-                onDismiss={() => handleDismiss(opp.id)}
               />
             ))}
           </div>
         )}
       </section>
+
+      <LeverageModal
+        open={leverageOpen}
+        onClose={() => setLeverageOpen(false)}
+        totalCount={openOpportunities.length}
+        onProfileSaved={(p) => setProfile(p)}
+      />
     </div>
   );
 }

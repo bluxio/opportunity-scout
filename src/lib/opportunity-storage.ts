@@ -1,3 +1,4 @@
+import type { ProfileGoal } from "@/lib/rank-for-profile";
 import type { OpportunitySubmission } from "@/lib/opportunity-types";
 
 const SAVED_KEY = "opp-scout-saved";
@@ -10,6 +11,7 @@ export interface FeedProfile {
   year: string;
   school: string;
   skills: string;
+  goal?: ProfileGoal;
 }
 
 export function loadSavedIds(): string[] {
